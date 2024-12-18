@@ -1,9 +1,12 @@
 from openai import OpenAI
 import json
 import os
-## print("Current working directory:", os.getcwd())
+import yaml
 import requests
 from dotenv import load_dotenv
+
+# Use this to activate virtual environment
+# .\venv\Scripts\activate
 
 # Load .env file
 load_dotenv(override=True) 
@@ -11,6 +14,10 @@ load_dotenv(override=True)
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     print("API key not found. Please set the 'OPENAI_API_KEY' environment variable.")
+
+# Load YAML file
+with open('prompts.yaml', 'r') as file:
+    prompts = yaml.safe_load(file)
 
 # Initialize the OpenAI client
 client = OpenAI(api_key=openai_api_key)
@@ -20,63 +27,6 @@ user_input = """
 You are a mathematics expert, specializing in the fields of geometry and algebra. Compute the Euclidean distance between the points (-2, 5) and (3, 7).
 """
 
-# Initial meta prompt; system & user
-system_prompt = """
-You are Meta-Expert, an extremely clever expert with the unique ability to collaborate with multiple experts (such as Expert Problem Solver, Expert Mathematician, Expert Essayist, etc.) to tackle any task and solve any complex problems. Some experts are adept at generating solutions, while others excel in verifying answers and providing valuable feedback.
-
-Note that you also have special access to Expert Python, which has the unique ability to generate and execute Python code given natural-language instructions. Expert Python is highly capable of crafting code to perform complex calculations when given clear and precise directions. You might therefore want to use it especially for computational tasks.
-
-As Meta-Expert, your role is to oversee the communication between the experts, effectively using their skills to answer a given question while applying your own critical thinking and verification abilities.
-
-To communicate with an expert, structure your request as a Python dictionary with the following format:
-expert_request = {
-    'expert_name': 'Expert Name',  # e.g., 'Expert Linguist' or 'Expert Puzzle Solver'
-    'instruction': '''Your detailed instruction goes here, including any necessary context and specific requirements'''
-}
-For example:
-expert_request = {
-    'expert_name': 'Expert Mathematician',
-    'instruction': '''You are a mathematics expert, specializing in the fields of geometry and algebra. Compute the Euclidean distance between the points (-2, 5) and (3, 7).'''
-}
-```"
-Each interaction is treated as an isolated event, so include all relevant details in every call. The experts cannot communicate with each other. The experts cannot pass on their outputs to each other. The experts can only work in isolation from one another. 
- 
-Note that you also have special access to Expert Python, which has the unique ability to generate and execute Python code given natural-language instructions. Expert Python is highly capable of crafting code to perform complex calculations when given clear and precise directions. You might therefore want to use it especially for computational tasks.
-
-Refrain from repeating the very same questions to experts. Examine their responses carefully and seek clarification if required, keeping in mind they don't recall past interactions.
-
-Return your output only in form of python dictionary. Do not include any explanations, notes, or natural language before or after the dictionary. The dictionary should be valid Python syntax that could be directly parsed by json.loads().
-
-You must always consult with at least three different experts, even if the task seems simple enough for one expert to handle. Each expert should focus on a different aspect of the problem.
-"""
-
-user_prompt = """
-Generate a list of expert_request functions to deliver on the task described under the heading "Task". Consider the list of experts you deem necessary to execute on the task described under the heading "Task". Append detailed instructions to each expert on what they should execute in order to help you as the Meta-Expert to deliver on the overall task. 
-Follow this chain of thought when executing on the task:
-1. Analyze the task to be solved in the request described under the heading "Task".
-2. Break down the task into 3 to 5 subcomponents. Do no return these components. Just remember them.
-3. Come up with an expert title which would be best fitted to solve each subcomponent
-4. Consider what instructions to pass to each expert in order to help you solve the overarching task
-5. Return AT LEAST THREE expert name and their respective instructions in the following format: 
-{
-    "expert_request_1": {
-        "expert": "Expert Name",
-        "instructions": "Your detailed instruction goes here."
-    },
-    "expert_request_2": {
-        "expert": "Expert Name",
-        "instructions": "Your detailed instruction goes here."
-    },
-    "expert_request_3": {
-        "expert": "Expert Name",
-        "instructions": "Your detailed instruction goes here."
-    }
-Your response must be ONLY the Python dictionary. Do not include any explanations, notes, markdown formatting, or natural language. The dictionary must be valid Python syntax that could be directly parsed by json.loads().
-
-# Task:""" + user_input
-
-# print(user_prompt)
-
 # Function to send a prompt to the OpenAI API
 def call_openai_api():
     try:
@@ -84,8 +34,8 @@ def call_openai_api():
         response = client.chat.completions.create(
             model="gpt-4",  # Specify the model to use
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}],
+                {"role": "system", "content": prompts['system_prompt']},
+                {"role": "user", "content": f"{prompts['user_prompt']}".replace("{user_input}", user_input)}],
             temperature=0.7,
             max_tokens=4000,
         )
