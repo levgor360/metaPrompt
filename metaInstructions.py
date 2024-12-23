@@ -5,6 +5,9 @@ import yaml
 import requests
 from dotenv import load_dotenv
 
+# TO DO
+# Transfer rest of promtps to YAML
+
 # Use this to activate virtual environment
 # .\venv\Scripts\activate
 
@@ -45,7 +48,6 @@ def call_openai_api():
         print(f"Error occurred while calling OpenAI API: {e}")
         return None
 
-
 response = call_openai_api()
 
 # Print output to terminal
@@ -57,25 +59,11 @@ else:
 # Meta-expert's output is clasified into a JSON dictionary:
 expert_requests = json.loads(response.choices[0].message.content)
 
-# Expert System Prompt:
-expert_sysPrompt = """Follow the instructions given and respond accordingly. Return your output in the format you see below.
-
-Your response must be ONLY the Python dictionary. Do not include any explanations, notes, markdown formatting, or natural language. The dictionary must be valid Python syntax that could be directly parsed by json.loads().
-
-Your output should be a single entry in the following format:
-
-{
-    "expert_advice_1": {
-        "expert": "Expert Name",
-        "advice": "Your detailed instruction goes here."
-    }
-"""
-
 # Define expert API call
 def call_expert_api(expert_name, instructions): #these will later be filled by extracted JSON data
     expert_prompt = {
         "role": "system",
-        "content": f"""You are {expert_name}. {expert_sysPrompt}"""
+        "content": f"""You are {expert_name}. {prompts['expert_sysPrompt']}"""
 
     }
     user_message = {"role": "user", "content": instructions}
@@ -112,22 +100,6 @@ for i, (request_key, request_data) in enumerate(expert_requests.items(), 1): # C
 
 # print(json.dumps(expert_responses, indent=4))
 
-
-# Expert to MetaExpert prompt:
-metaExpert2_sysPrompt = f"""
-You are a Meta-Expert, an extremely clever expert who receives feedback from multiple experts (such as Expert Problem Solver, Expert Mathematician, Expert Essayist, etc.) to tackle any task and solve any complex problems.
-
-You are tasked with solving the following task / problem:
-{user_input}.
-
-As a Meta-Expert, you will be receiving suggestions, recommendations and methodologies from a diverse set of experts on how to solve the task. Your job is use the expert inputs tothe best of your ability to better solve the task. 
-
-Follow this train of thought when using the expert inputs to solve the task:
-1. Consider separately each of the expert recommendations, their validity and utility in solving the task. Give a score between one and ten to each expert as to how you would judge their performance. For example, if the expert provided information that is factually incorrect, false or misleading, you will assign a score of zero to that expert. If the expert advice is highly relevant to the task, detailed, insightful and considerate of the nuance that the task demands, then you would assign a score of ten to the expert. Do not output this score, just remember it internally. 
-2. Come up with a strategy as to how you will integrate the suggestions of the experts, giving weight to the expert advice in proportion to their performance score. For example, if an expert has a score of zero, you would ignore its advice altogether. If the expert has a score of ten, then you would highly influence the way you choose to satisfy the task in relation to what that expert advised. If multiple experts got high scores, you would consider how you would apply their suggestions in parallel. If two expert advice conflict, then choose the one that is optimal.
-3. Present a solution to the problem or the output desired by the user. Speak as a representative of the experts, voicing their reasoning where relevant, but do not mention the experts. Speak as if you embody the experts yourself.
-"""
-
 metaExpert2_userPrompt = ""
 
 for advice_key, advice_data in expert_responses.items():
@@ -142,7 +114,7 @@ def meta_expert_call2():
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": metaExpert2_sysPrompt},
+                {"role": "system", "content": prompts['metaExpert2_sysPrompt'].replace("{user_input}", user_input)},
                 {"role": "user", "content": metaExpert2_userPrompt}],
                 temperature=0.7,
                 max_tokens=4000,
